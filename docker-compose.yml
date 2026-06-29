@@ -16,7 +16,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./backend-java/yudao-ui/yudao-ui-admin-uniapp/dist:/usr/share/nginx/html/mobile:ro
+      - ./backend-java/yudao-ui/yudao-ui-admin-uniapp/dist/build/h5:/usr/share/nginx/html/mobile:ro
       - ./backend-java/yudao-ui/yudao-ui-admin-vue3/dist:/usr/share/nginx/html/admin:ro
     networks:
       - frontend
