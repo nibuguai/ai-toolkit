@@ -1,0 +1,52 @@
+# 环境变量（含敏感信息）
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+*.egg
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# Node / Vue
+node_modules/
+dist/
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+
+# Docker
+# （不忽略 Dockerfile 和 docker-compose.yml）
+
+# 模型文件（太大，重新下载即可）
+services/*/models/
+*.pth
+*.onnx
+*.bin
+*.safetensors
+
+# 数据目录
+/data/
+*.db
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# SSL 证书（本地自签）
+nginx/ssl/
