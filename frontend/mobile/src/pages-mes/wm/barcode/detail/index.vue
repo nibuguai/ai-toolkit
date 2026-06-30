@@ -1,0 +1,169 @@
+<template>
+  <view class="yd-page-container">
+    <!-- 顶部导航栏 -->
+    <wd-navbar
+      title="MES 条码详情"
+      left-arrow placeholder safe-area-inset-top fixed
+      @click-left="handleBack"
+    />
+
+    <!-- 详情内容 -->
+    <scroll-view class="min-h-0 flex-1" scroll-y scroll-with-animation>
+      <view class="p-24rpx">
+        <BarcodePreview :content="formData?.content" :format="formData?.format" />
+      </view>
+      <wd-cell-group border>
+        <wd-cell title="条码格式">
+          <dict-tag v-if="formData?.format != null" :type="DICT_TYPE.MES_WM_BARCODE_FORMAT" :value="formData.format" />
+          <text v-else>-</text>
+        </wd-cell>
+        <wd-cell title="业务类型">
+          <dict-tag v-if="formData?.bizType != null" :type="DICT_TYPE.MES_WM_BARCODE_BIZ_TYPE" :value="formData.bizType" />
+          <text v-else>-</text>
+        </wd-cell>
+        <wd-cell title="条码内容" :value="formData?.content || '-'" />
+        <wd-cell title="业务编码" :value="formData?.bizCode || '-'" />
+        <wd-cell title="业务名称" :value="formData?.bizName || '-'" />
+        <wd-cell title="状态">
+          <dict-tag v-if="formData?.status != null" :type="DICT_TYPE.COMMON_STATUS" :value="formData.status" />
+          <text v-else>-</text>
+        </wd-cell>
+        <wd-cell title="备注" :value="formData?.remark || '-'" />
+        <wd-cell title="创建时间" :value="formatDateTime(formData?.createTime) || '-'" />
+      </wd-cell-group>
+      <view class="h-180rpx" />
+    </scroll-view>
+
+    <!-- 底部操作按钮 -->
+    <MesFooterActions content-class="yd-detail-footer-actions">
+      <wd-button
+        v-if="hasAccessByCodes(['mes:wm-barcode:update'])"
+        class="flex-1" type="warning" @click="handleEdit"
+      >
+        编辑
+      </wd-button>
+      <wd-button
+        v-if="hasAccessByCodes(['mes:wm-barcode:delete'])"
+        class="flex-1" type="danger" :loading="deleting" @click="handleDelete"
+      >
+        删除
+      </wd-button>
+    </MesFooterActions>
+  </view>
+</template>
+
+<script lang="ts" setup>
+import type { WmBarcodeVO } from '@/api/mes/wm/barcode'
+import { useDialog } from '@wot-ui/ui/components/wd-dialog'
+import { useToast } from '@wot-ui/ui/components/wd-toast'
+import { computed, onMounted, ref, watch } from 'vue'
+import { deleteBarcode, getBarcode } from '@/api/mes/wm/barcode'
+import { useAccess } from '@/hooks/useAccess'
+import { useRouteQuery } from '@/hooks/useRouteQuery'
+import MesFooterActions from '@/pages-mes/components/mes-footer-actions.vue'
+import { navigateBackPlus } from '@/utils'
+import { DICT_TYPE } from '@/utils/constants'
+import { formatDateTime } from '@/utils/date'
+import BarcodePreview from '../components/barcode-preview.vue'
+
+const props = defineProps<{
+  id?: number | string
+}>()
+
+definePage({
+  style: {
+    navigationBarTitleText: '',
+    navigationStyle: 'custom',
+  },
+})
+
+const { hasAccessByCodes } = useAccess()
+const dialog = useDialog()
+const toast = useToast()
+const { getRouteQueryNumber } = useRouteQuery(props, '/pages-mes/wm/barcode/detail/index')
+// TODO @YunaiV：简单 id 参数优先直接用 props.id 接收，不需要 useRouteQuery/getRouteQueryNumber 包一层；多参数页面只保留其它 query 的 helper。
+const currentId = computed(() => getRouteQueryNumber('id'))
+const formData = ref<WmBarcodeVO>() // 详情数据
+const deleting = ref(false) // 删除状态
+
+/** 返回上一页 */
+function handleBack() {
+  navigateBackPlus('/pages-mes/wm/barcode/index')
+}
+
+/** 加载详情 */
+async function getDetail() {
+  if (!currentId.value) {
+    return
+  }
+  try {
+    toast.loading('加载中...')
+    const detailData = await getBarcode(currentId.value)
+    if (!detailData) {
+      uni.showToast({ icon: 'none', title: '详情不存在，已返回列表' })
+      // TODO @YunaiV：成功后延迟返回统一改 delay(handleBack)，对齐 system/infra（本文件共 2 处 setTimeout(() => handleBack())）
+      setTimeout(() => handleBack(), 300)
+      return
+    }
+    formData.value = detailData
+  } finally {
+    toast.close()
+  }
+}
+
+/** 初始化页面数据 */
+async function initPage() {
+  if (!currentId.value) {
+    formData.value = undefined
+    return
+  }
+  if (!formData.value || formData.value.id !== currentId.value) {
+    await getDetail()
+  }
+}
+
+/** 编辑 */
+function handleEdit() {
+  if (!currentId.value) {
+    return
+  }
+  uni.navigateTo({
+    url: `/pages-mes/wm/barcode/form/index?id=${currentId.value}`,
+  })
+}
+
+/** 删除 */
+async function handleDelete() {
+  if (!currentId.value) {
+    return
+  }
+  try {
+    await dialog.confirm({
+      title: '提示',
+      msg: '确定要删除该条码吗？',
+    })
+  } catch {
+    return
+  }
+  deleting.value = true
+  try {
+    await deleteBarcode(currentId.value)
+    toast.success('删除成功')
+    uni.$emit('mes:wm:barcode:reload')
+    setTimeout(() => {
+      handleBack()
+    }, 500)
+  } finally {
+    deleting.value = false
+  }
+}
+
+/** 初始化 */
+onMounted(() => {
+  initPage()
+})
+
+watch(currentId, () => {
+  initPage()
+})
+</script>

@@ -1,0 +1,141 @@
+<template>
+  <!-- 搜索框入口 -->
+  <view @click="visible = true">
+    <wd-search :placeholder="placeholder" hide-cancel disabled />
+  </view>
+
+  <!-- 搜索弹窗 -->
+  <wd-popup
+    v-model="visible"
+    position="top"
+    :custom-style="getTopPopupStyle()"
+    :modal-style="getTopPopupModalStyle()"
+    @close="visible = false"
+  >
+    <view class="yd-search-form-container">
+      <view class="yd-search-form-item">
+        <view class="yd-search-form-label">
+          用户
+        </view>
+        <UserPicker ref="userPickerRef" v-model="formData.userId" type="radio" placeholder="请选择用户" />
+      </view>
+      <view class="yd-search-form-item">
+        <view class="yd-search-form-label">
+          好友
+        </view>
+        <UserPicker ref="friendPickerRef" v-model="formData.friendUserId" type="radio" placeholder="请选择好友" />
+      </view>
+      <view class="yd-search-form-item">
+        <view class="yd-search-form-label">
+          状态
+        </view>
+        <wd-radio-group v-model="formData.status" type="button">
+          <wd-radio :value="-1">
+            全部
+          </wd-radio>
+          <wd-radio
+            v-for="dict in getIntDictOptions(DICT_TYPE.IM_FRIEND_STATUS)"
+            :key="dict.value"
+            :value="dict.value"
+          >
+            {{ dict.label }}
+          </wd-radio>
+        </wd-radio-group>
+      </view>
+      <view class="yd-search-form-item">
+        <view class="yd-search-form-label">
+          免打扰
+        </view>
+        <wd-radio-group v-model="formData.silent" type="button">
+          <wd-radio :value="-1">
+            全部
+          </wd-radio>
+          <wd-radio :value="true">
+            是
+          </wd-radio>
+          <wd-radio :value="false">
+            否
+          </wd-radio>
+        </wd-radio-group>
+      </view>
+      <yd-search-date-range v-model="formData.addTime" label="添加时间" />
+      <view class="yd-search-form-actions">
+        <wd-button class="flex-1" variant="plain" @click="handleReset">
+          重置
+        </wd-button>
+        <wd-button class="flex-1" type="primary" @click="handleSearch">
+          搜索
+        </wd-button>
+      </view>
+    </view>
+  </wd-popup>
+</template>
+
+<script lang="ts" setup>
+import { computed, reactive, ref } from 'vue'
+import UserPicker from '@/components/system-select/user-picker.vue'
+import { getDictLabel, getIntDictOptions } from '@/hooks/useDict'
+import { getTopPopupModalStyle, getTopPopupStyle } from '@/utils'
+import { DICT_TYPE } from '@/utils/constants'
+import { formatDate, formatDateRange } from '@/utils/date'
+
+const emit = defineEmits<{
+  search: [data: Record<string, any>]
+  reset: []
+}>()
+
+const visible = ref(false) // 搜索弹窗显示状态
+const userPickerRef = ref<any>() // 用户选择器引用
+const friendPickerRef = ref<any>() // 好友选择器引用
+const formData = reactive({
+  userId: undefined as number | undefined,
+  friendUserId: undefined as number | undefined,
+  status: -1, // -1 表示全部
+  silent: -1 as -1 | boolean, // -1 全部，true 免打扰，false 正常
+  addTime: [undefined, undefined] as [number | undefined, number | undefined],
+}) // 搜索表单数据
+
+/** 搜索条件 placeholder 拼接 */
+const placeholder = computed(() => {
+  const conditions: string[] = []
+  if (formData.userId) {
+    conditions.push(`用户:${userPickerRef.value?.getUserNickname(formData.userId) || formData.userId}`)
+  }
+  if (formData.friendUserId) {
+    conditions.push(`好友:${friendPickerRef.value?.getUserNickname(formData.friendUserId) || formData.friendUserId}`)
+  }
+  if (formData.status !== -1) {
+    conditions.push(`状态:${getDictLabel(DICT_TYPE.IM_FRIEND_STATUS, formData.status)}`)
+  }
+  if (formData.silent !== -1) {
+    conditions.push(`免打扰:${formData.silent === true ? '是' : '否'}`)
+  }
+  if (formData.addTime?.[0] && formData.addTime?.[1]) {
+    conditions.push(`添加时间:${formatDate(formData.addTime[0])}~${formatDate(formData.addTime[1])}`)
+  }
+  return conditions.length > 0 ? conditions.join(' | ') : '搜索好友关系'
+})
+
+/** 搜索按钮操作 */
+function handleSearch() {
+  visible.value = false
+  emit('search', {
+    userId: formData.userId,
+    friendUserId: formData.friendUserId,
+    status: formData.status === -1 ? undefined : formData.status,
+    silent: formData.silent === -1 ? undefined : formData.silent,
+    addTime: formatDateRange(formData.addTime),
+  })
+}
+
+/** 重置按钮操作 */
+function handleReset() {
+  formData.userId = undefined
+  formData.friendUserId = undefined
+  formData.status = -1
+  formData.silent = -1
+  formData.addTime = [undefined, undefined]
+  visible.value = false
+  emit('reset')
+}
+</script>

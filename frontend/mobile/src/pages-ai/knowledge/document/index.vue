@@ -1,0 +1,218 @@
+<template>
+  <view class="yd-page-container yd-page-container-paging">
+    <!-- 顶部导航栏 -->
+    <wd-navbar
+      :title="navbarTitle"
+      left-arrow placeholder safe-area-inset-top fixed
+      @click-left="handleBack"
+    />
+
+    <!-- 搜索组件 -->
+    <SearchForm @search="handleQuery" @reset="handleReset" />
+
+    <!-- 文档列表 -->
+    <z-paging
+      ref="pagingRef"
+      v-model="list"
+      :fixed="false"
+      class="min-h-0 flex-1"
+      :default-page-size="10"
+      :refresher-enabled="true"
+      :inside-more="true"
+      :loading-more-default-as-loading="true"
+      empty-view-text="暂无文档"
+      @query="queryList"
+    >
+      <view class="p-24rpx">
+        <view
+          v-for="item in list"
+          :key="item.id"
+          class="mb-24rpx rounded-12rpx bg-white p-24rpx shadow-sm"
+        >
+          <view class="mb-16rpx flex items-start justify-between gap-16rpx">
+            <view class="min-w-0 flex-1">
+              <view class="truncate text-32rpx text-[#333] font-semibold">
+                {{ item.name || '-' }}
+              </view>
+              <view class="mt-8rpx text-24rpx text-[#999]">
+                知识库：{{ item.knowledgeName || props.knowledgeName || item.knowledgeId || '-' }}
+              </view>
+            </view>
+            <wd-switch
+              v-model="item.status"
+              :active-value="CommonStatusEnum.ENABLE"
+              :inactive-value="CommonStatusEnum.DISABLE"
+              :disabled="!hasAccessByCodes(['ai:knowledge:update'])"
+              @change="handleStatusChange(item)"
+            />
+          </view>
+          <view class="text-24rpx text-[#999]">
+            字符 {{ item.contentLength ?? 0 }} / Token {{ item.tokens ?? 0 }} / 召回 {{ item.retrievalCount ?? 0 }}
+          </view>
+          <view class="mt-20rpx flex justify-end gap-16rpx">
+            <wd-button
+              size="small" type="primary" variant="plain"
+              @click="handleSegment(item)"
+            >
+              分段
+            </wd-button>
+            <wd-button
+              v-if="hasAccessByCodes(['ai:knowledge:update'])"
+              size="small" type="warning" variant="plain"
+              @click="handleEdit(item)"
+            >
+              编辑
+            </wd-button>
+            <wd-button
+              v-if="hasAccessByCodes(['ai:knowledge:delete'])"
+              size="small" type="danger" variant="plain"
+              @click="handleDelete(item)"
+            >
+              删除
+            </wd-button>
+          </view>
+        </view>
+      </view>
+    </z-paging>
+
+    <!-- 新增按钮 -->
+    <wd-fab
+      v-if="hasAccessByCodes(['ai:knowledge:create'])"
+      position="right-bottom"
+      type="primary"
+      :expandable="false"
+      @click="handleAdd"
+    />
+  </view>
+</template>
+
+<script lang="ts" setup>
+import type { KnowledgeDocumentVO } from '@/api/ai/knowledge/document'
+import { useDialog } from '@wot-ui/ui/components/wd-dialog'
+import { useToast } from '@wot-ui/ui/components/wd-toast'
+import { onUnload } from '@dcloudio/uni-app'
+import { computed, onMounted, ref } from 'vue'
+import {
+  deleteKnowledgeDocument,
+  getKnowledgeDocumentPage,
+  updateKnowledgeDocumentStatus,
+} from '@/api/ai/knowledge/document'
+import { useAccess } from '@/hooks/useAccess'
+import { navigateBackPlus } from '@/utils'
+import { CommonStatusEnum } from '@/utils/constants'
+import SearchForm from './components/search-form.vue'
+
+const props = defineProps<{
+  knowledgeId?: number | any
+  knowledgeName?: string
+}>()
+
+definePage({
+  style: {
+    navigationBarTitleText: '',
+    navigationStyle: 'custom',
+  },
+})
+
+const { hasAccessByCodes } = useAccess()
+const toast = useToast()
+const dialog = useDialog()
+const list = ref<KnowledgeDocumentVO[]>([]) // 列表数据
+const queryParams = ref<Record<string, any>>({}) // 查询参数
+const pagingRef = ref<any>() // 分页组件引用
+
+const navbarTitle = computed(() => props.knowledgeName ? `${props.knowledgeName} · 文档` : '文档') // 导航栏标题
+
+/** 返回上一页 */
+function handleBack() {
+  navigateBackPlus('/pages-ai/knowledge/index')
+}
+
+/** 查询文档列表 */
+async function queryList(pageNo: number, pageSize: number) {
+  try {
+    const params = {
+      ...queryParams.value,
+      knowledgeId: props.knowledgeId ? Number(props.knowledgeId) : undefined,
+      pageNo,
+      pageSize,
+    }
+    const data = await getKnowledgeDocumentPage(params)
+    pagingRef.value?.completeByTotal(data.list, data.total)
+  } catch {
+    pagingRef.value?.complete(false)
+  }
+}
+
+/** 搜索按钮操作 */
+function handleQuery(data?: Record<string, any>) {
+  queryParams.value = { ...data }
+  reload()
+}
+
+/** 重置按钮操作 */
+function handleReset() {
+  handleQuery()
+}
+
+/** 重新加载 */
+function reload() {
+  pagingRef.value?.reload()
+}
+
+/** 修改文档状态 */
+async function handleStatusChange(item: KnowledgeDocumentVO) {
+  const text = item.status === CommonStatusEnum.ENABLE ? '启用' : '停用'
+  try {
+    await dialog.confirm({ title: '提示', msg: `确认要${text}文档【${item.name}】吗？` })
+  } catch {
+    // 取消后，回滚开关状态
+    item.status = item.status === CommonStatusEnum.ENABLE ? CommonStatusEnum.DISABLE : CommonStatusEnum.ENABLE
+    return
+  }
+  try {
+    await updateKnowledgeDocumentStatus({ id: item.id, status: item.status })
+    toast.success('更新成功')
+  } catch {
+    // 失败后，回滚开关状态
+    item.status = item.status === CommonStatusEnum.ENABLE ? CommonStatusEnum.DISABLE : CommonStatusEnum.ENABLE
+  }
+}
+
+/** 跳转分段列表 */
+function handleSegment(item: KnowledgeDocumentVO) {
+  uni.navigateTo({ url: `/pages-ai/knowledge/segment/index?documentId=${item.id}&knowledgeId=${item.knowledgeId}&documentName=${encodeURIComponent(item.name || '')}` })
+}
+
+/** 新增文档 */
+function handleAdd() {
+  uni.navigateTo({ url: `/pages-ai/knowledge/document/form/index?knowledgeId=${props.knowledgeId || ''}` })
+}
+
+/** 编辑文档 */
+function handleEdit(item: KnowledgeDocumentVO) {
+  uni.navigateTo({ url: `/pages-ai/knowledge/document/form/index?id=${item.id}&knowledgeId=${item.knowledgeId}` })
+}
+
+/** 删除文档 */
+async function handleDelete(item: KnowledgeDocumentVO) {
+  try {
+    await dialog.confirm({ title: '提示', msg: `确定要删除文档【${item.name}】吗？` })
+  } catch {
+    return
+  }
+  await deleteKnowledgeDocument(item.id!)
+  toast.success('删除成功')
+  reload()
+}
+
+/** 初始化 */
+onMounted(() => {
+  uni.$on('ai:knowledge-document:reload', reload)
+})
+
+/** 卸载 */
+onUnload(() => {
+  uni.$off('ai:knowledge-document:reload', reload)
+})
+</script>
