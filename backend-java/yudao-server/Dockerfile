@@ -1,23 +1,37 @@
-## AdoptOpenJDK 停止发布 OpenJDK 二进制，而 Eclipse Temurin 是它的延伸，提供更好的稳定性
-## 感谢复旦核博士的建议！灰子哥，牛皮！
+## ====== 阶段 1：Maven 编译 ======
+FROM maven:3.9-eclipse-temurin-21 AS builder
+
+WORKDIR /build
+
+# 先复制 pom 文件，利用 Docker 缓存加速依赖下载
+COPY pom.xml .
+COPY yudao-dependencies/pom.xml yudao-dependencies/
+COPY yudao-framework/pom.xml yudao-framework/
+COPY yudao-module-system/pom.xml yudao-module-system/
+COPY yudao-module-infra/pom.xml yudao-module-infra/
+COPY yudao-module-ai/pom.xml yudao-module-ai/
+COPY yudao-server/pom.xml yudao-server/
+
+# 下载依赖（这一层会被缓存，除非 pom 文件变化）
+RUN mvn dependency:go-offline -B -pl yudao-server -am -DskipTests || true
+
+# 复制源码并编译
+COPY . .
+RUN mvn clean package -pl yudao-server -am -DskipTests -Pboot -B
+
+## ====== 阶段 2：运行 ======
 FROM eclipse-temurin:21-jre
 
-## 创建目录，并使用它作为工作目录
 RUN mkdir -p /yudao-server
 WORKDIR /yudao-server
-## 将后端项目的 Jar 文件，复制到镜像中
-COPY ./target/yudao-server.jar app.jar
 
-## 设置 TZ 时区
+COPY --from=builder /build/yudao-server/target/yudao-server.jar app.jar
+
 ENV TZ=Asia/Shanghai
-## 设置 JAVA_OPTS 环境变量，可通过 docker run -e "JAVA_OPTS=" 进行覆盖
-ENV JAVA_OPTS="-Xms1024m -Xmx4096m -Djava.security.egd=file:/dev/./urandom"
-
-## 应用参数
+ENV JAVA_OPTS="-Xms512m -Xmx2048m -Djava.security.egd=file:/dev/./urandom"
+ENV SPRING_PROFILES_ACTIVE=docker
 ENV ARGS=""
 
-## 暴露后端项目的 48080 端口
-EXPOSE 48080
+EXPOSE 8180
 
-## 启动后端项目
 CMD java ${JAVA_OPTS} -jar app.jar $ARGS

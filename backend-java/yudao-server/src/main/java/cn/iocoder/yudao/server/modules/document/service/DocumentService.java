@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 文档处理 Service —— 编排 FastAPI 调用
  */
-@Service
+@Service("docProcessService")
 public class DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);

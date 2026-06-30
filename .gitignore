@@ -1,5 +1,8 @@
 # 环境变量（含敏感信息）
 .env
+.env.*
+!.env.example
+infra/.env
 
 # Python
 __pycache__/
@@ -19,6 +22,11 @@ target/
 node_modules/
 dist/
 *.local
+frontend/*/dist/
+frontend/*/node_modules/
+frontend/mobile/.git/
+frontend/mobile/.husky/
+*.tsbuildinfo
 
 # IDE
 .idea/
@@ -50,3 +58,6 @@ Thumbs.db
 
 # SSL 证书（本地自签）
 nginx/ssl/
+
+# 内部文档（不公开）
+docs/
