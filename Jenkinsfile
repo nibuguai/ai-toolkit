@@ -6,7 +6,9 @@ pipeline {
     }
 
     environment {
-        PROJECT_DIR = '/var/jenkins_home/workspace/ai-toolkit'
+        // 项目在 Linux 文件系统上（ext4），pnpm 可正常工作
+        // 路径必须和 Docker 宿主机一致，否则 docker compose 相对路径解析失败
+        PROJECT_DIR = '/home/deploy/ai-toolkit'
     }
 
     options {
@@ -26,7 +28,7 @@ pipeline {
             steps {
                 dir("${env.PROJECT_DIR}") {
                     sh '''
-                        git fetch origin master
+                        git -c http.sslVerify=false fetch origin master
                         git reset --hard origin/master
                     '''
                 }
@@ -70,23 +72,19 @@ pipeline {
 
                         env.CHANGE_JAVA    = changes.contains('backend-java/')                    ? 'true' : 'false'
                         env.CHANGE_PYTHON  = changes.contains('backend-python/')                  ? 'true' : 'false'
+                        env.CHANGE_ADMIN   = changes.contains('frontend/yudao-ui-admin-vue3/')    ? 'true' : 'false'
+                        env.CHANGE_MOBILE  = changes.contains('frontend/yudao-ui-admin-uniapp/')  ? 'true' : 'false'
                         env.CHANGE_NGINX   = changes.contains('nginx/')                           ? 'true' : 'false'
                         env.CHANGE_COMPOSE = changes.contains('docker-compose.yml')               ? 'true' : 'false'
-
-                        // 前端变更只记录日志，不自动构建（需要在 Windows 上用 pnpm 手动构建）
-                        def frontendChanged = changes.contains('frontend/yudao-ui-admin-vue3/') ||
-                                              changes.contains('frontend/yudao-ui-admin-uniapp/')
-                        if (frontendChanged) {
-                            echo '⚠️ Frontend changes detected - run deploy.bat on Windows to rebuild'
-                        }
 
                         echo """
                         |=== Change Summary ===
                         |Backend Java:    ${env.CHANGE_JAVA}
                         |Backend Python:  ${env.CHANGE_PYTHON}
+                        |Frontend Admin:  ${env.CHANGE_ADMIN}
+                        |Frontend Mobile: ${env.CHANGE_MOBILE}
                         |Nginx:           ${env.CHANGE_NGINX}
                         |Docker Compose:  ${env.CHANGE_COMPOSE}
-                        |Frontend:        ${frontendChanged ? 'NEEDS MANUAL BUILD' : 'no change'}
                         |========================
                         """.stripMargin()
                     }
@@ -132,6 +130,66 @@ pipeline {
             }
         }
 
+        stage('Deploy Admin Frontend') {
+            when {
+                expression {
+                    return env.DEPLOY_ALL == 'true' ||
+                           env.CHANGE_ADMIN == 'true' ||
+                           env.CHANGE_NGINX == 'true'
+                }
+            }
+            steps {
+                echo 'Building & deploying admin frontend...'
+                dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
+                    sh '''
+                        pnpm install
+                        pnpm build
+                    '''
+                }
+                dir("${env.PROJECT_DIR}") {
+                    sh 'docker exec doc-nginx nginx -s reload || docker compose up -d doc-nginx'
+                }
+            }
+        }
+
+        stage('Deploy Mobile Frontend') {
+            when {
+                expression {
+                    return env.DEPLOY_ALL == 'true' ||
+                           env.CHANGE_MOBILE == 'true' ||
+                           env.CHANGE_NGINX == 'true'
+                }
+            }
+            steps {
+                echo 'Building & deploying mobile frontend...'
+                dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-uniapp") {
+                    sh '''
+                        pnpm install
+                        pnpm build:h5
+                    '''
+                }
+                dir("${env.PROJECT_DIR}") {
+                    sh 'docker exec doc-nginx nginx -s reload || docker compose up -d doc-nginx'
+                }
+            }
+        }
+
+        stage('Reload Nginx') {
+            when {
+                expression {
+                    return (env.CHANGE_NGINX == 'true' || env.CHANGE_COMPOSE == 'true') &&
+                           env.CHANGE_ADMIN != 'true' &&
+                           env.CHANGE_MOBILE != 'true'
+                }
+            }
+            steps {
+                echo 'Reloading nginx...'
+                dir("${env.PROJECT_DIR}") {
+                    sh 'docker exec doc-nginx nginx -s reload || docker compose up -d doc-nginx'
+                }
+            }
+        }
+
         stage('Health Check') {
             steps {
                 sleep(time: 10, unit: 'SECONDS')
@@ -144,10 +202,7 @@ pipeline {
 
     post {
         success {
-            echo '''
-            ✅ Backend deployment succeeded!
-            ⚠️ If frontend was changed, run deploy.bat on Windows to rebuild.
-            '''
+            echo '✅ Deployment succeeded!'
             sh "cd ${env.PROJECT_DIR} && git rev-parse HEAD > ${env.PROJECT_DIR}/.last-deployed-commit"
         }
         failure { echo '❌ Deployment failed!' }

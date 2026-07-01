@@ -13,14 +13,13 @@ services:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker:ro
-      - /mnt/g/ai-toolkit:/var/jenkins_home/workspace/ai-toolkit
-    # 映射 github.com 到 Windows 宿主机 IP（Watt Toolkit 代理）
+      # 关键：容器内路径和宿主机路径保持一致，docker compose 相对路径才能正确解析
+      - /home/deploy/ai-toolkit:/home/deploy/ai-toolkit
     extra_hosts:
       - "github.com:172.28.80.1"
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
       - TZ=Asia/Shanghai
-      # Watt Toolkit 代理使用自签名证书，需要跳过 SSL 验证
       - GIT_SSL_NO_VERIFY=1
 
 volumes:
