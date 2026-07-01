@@ -58,13 +58,11 @@ services:
     image: nginx:alpine
     container_name: doc-nginx
     ports:
-      - "127.0.0.1:8880:80"
+      - "0.0.0.0:8880:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/html:/usr/share/nginx/html
-      - ./frontend/mobile/dist/build/h5:/usr/share/nginx/html/mobile
-      # admin 前端构建后取消注释
-      # - ./frontend/admin/dist:/usr/share/nginx/html/admin
+      - ./frontend/yudao-ui-admin-uniapp/dist/build/h5:/usr/share/nginx/html/mobile
     networks:
       - shared-net
     depends_on:

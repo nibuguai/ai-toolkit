@@ -22,11 +22,21 @@ target/
 node_modules/
 dist/
 *.local
-frontend/*/dist/
-frontend/*/node_modules/
-frontend/mobile/.git/
-frontend/mobile/.husky/
 *.tsbuildinfo
+
+# 前端项目（从上游克隆后需要排除的）
+frontend/*/.git/
+frontend/*/.husky/
+frontend/*/node_modules/
+frontend/*/dist/
+frontend/*/unpackage/
+frontend/*/docs/
+frontend/*/.image/
+frontend/*/.github/
+frontend/*/env/.env.local
+frontend/*/env/.env.development
+frontend/*/env/.env.production
+frontend/*/env/.env.test
 
 # IDE
 .idea/

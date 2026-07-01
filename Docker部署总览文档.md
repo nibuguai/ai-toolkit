@@ -19,7 +19,8 @@
 | ---- | ---- | ---- |
 | 共享基础设施 | `/data/compose/infra/`（WSL 文件系统） | MySQL、Redis、MinIO，所有项目共用 |
 | 应用层 | `/mnt/g/ai-toolkit/`（G 盘挂载到 WSL） | SpringBoot、FastAPI、Nginx |
-| 前端打包 | Windows 本地执行 | Node.js + pnpm 打包 H5，产物由 Nginx 读取 |
+| 手机 APP | HBuilderX 云打包 | `yudao-ui-admin-uniapp` 编译成 APK，直接请求后端 API |
+| 管理后台 | Windows 打包后部署到 Nginx | `yudao-ui-admin-vue3` 编译后由 Nginx 托管 |
 
 **核心部署原则：**
 
@@ -231,7 +232,10 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/html:/usr/share/nginx/html
-      - ./frontend/mobile/dist/build/h5:/usr/share/nginx/html/mobile
+      # 手机端 H5 前端（pnpm build:h5 后自动挂载）
+      - ./frontend/yudao-ui-admin-uniapp/dist/build/h5:/usr/share/nginx/html/mobile
+      # 管理后台前端（构建后取消注释）
+      # - ./frontend/yudao-ui-admin-vue3/dist:/usr/share/nginx/html/admin
     networks:
       - shared-net
     depends_on:
@@ -354,11 +358,57 @@ ANTHROPIC_API_KEY=your-key
 
 
 
-## 八、前端打包
+## 八、前端打包与部署
 
-- **H5 网页版**：Windows 命令行 `pnpm build:h5`，产物在 `frontend/mobile/dist/build/h5/`
-- **原生 App（APK）**：HBuilderX 云打包
-- **详细步骤**：见 `docs/docker-deployment.md` 第五章
+前端源码位于 `frontend/` 目录：
+
+| 项目 | 目录 | 打包方式 | 产物 |
+| ---- | ---- | ---- | ---- |
+| 手机 APP（原生） | `yudao-ui-admin-uniapp/` | HBuilderX → 发行 → 原生App-云打包 | APK 安装包 |
+| 手机端（H5 网页版） | `yudao-ui-admin-uniapp/` | `pnpm build:h5` | dist/ 挂载到 Nginx |
+| 管理后台 | `yudao-ui-admin-vue3/` | `pnpm build` | dist/ 部署到 Nginx |
+
+### 前端 dist 部署到 Nginx（Docker 挂载）
+
+前端打包后**不需要复制文件**到 Nginx 容器，通过 Docker bind mount 直接映射：
+
+```yaml
+# docker-compose.yml
+doc-nginx:
+  volumes:
+    - ./frontend/yudao-ui-admin-uniapp/dist/build/h5:/usr/share/nginx/html/mobile
+```
+
+```
+Windows 电脑                         nginx 容器
+frontend/yudao-ui-admin-uniapp/      /usr/share/nginx/html/mobile/
+  dist/build/h5/          ──挂载──▶    index.html
+    index.html                         assets/
+    assets/                            static/
+    static/
+```
+
+**关键点：**
+- 文件始终在 Windows 上，不复制到容器
+- 重新 `pnpm build:h5` 后 Nginx 立刻读到新文件，**不需要重启容器**
+- 内网穿透只需转发 8880 端口，前后端都通
+
+### 手机 APP 打包流程
+1. HBuilderX 打开 `frontend/yudao-ui-admin-uniapp`
+2. 修改 API 地址指向你的服务器
+3. 发行 → 原生App-云打包 → Android
+4. 下载 APK 安装到手机
+
+### 手机端 H5 打包流程
+1. `cd frontend/yudao-ui-admin-uniapp && pnpm install && pnpm build:h5`
+2. 产物在 `dist/build/h5/`，自动挂载到 Nginx
+3. 访问 `http://localhost:8880/` 或内网穿透地址
+
+### 管理后台打包流程
+1. `cd frontend/yudao-ui-admin-vue3 && pnpm install && pnpm build`
+2. 产物在 `dist/` 目录，部署到 Nginx
+
+**详细步骤**：见 `docs/docker-deployment.md` 第五章
 
 
 
@@ -372,8 +422,8 @@ ANTHROPIC_API_KEY=your-key
 | ---- | ---- | ---- |
 | Java 后端代码 | WSL | `cd /mnt/g/ai-toolkit && docker-compose up -d --build doc-springboot` |
 | Python 服务代码 | WSL | `cd /mnt/g/ai-toolkit && docker-compose up -d --build doc-fastapi-vision` |
-| 前端 H5 | Windows | `cd frontend/mobile && pnpm build:h5` |
-| 前端原生 App | HBuilderX | 发行 → 原生App-云打包 |
+| 管理后台前端 | Windows | `cd frontend/yudao-ui-admin-vue3 && pnpm build` |
+| 手机 APP | HBuilderX | 发行 → 原生App-云打包 |
 | 所有服务 | WSL | `cd /mnt/g/ai-toolkit && docker-compose up -d --build` |
 
 

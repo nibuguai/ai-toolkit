@@ -127,7 +127,7 @@ wx:
 --- #################### 宇擎 ####################
 yudao:
   captcha:
-    enable: true
+    enable: false
   security:
     mock-enable: false
   access-log:
