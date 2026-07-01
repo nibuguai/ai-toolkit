@@ -61,9 +61,6 @@ pipeline {
                         changes = 'ALL'
                     }
 
-                    // 保存当前 commit 供下次对比
-                    sh "cd ${env.PROJECT_DIR} && git rev-parse HEAD > ${lastCommitFile}"
-
                     if (changes == 'ALL') {
                         env.DEPLOY_ALL = 'true'
                         echo 'Full deployment triggered'
@@ -208,7 +205,11 @@ pipeline {
     }
 
     post {
-        success { echo '✅ Deployment succeeded!' }
+        success {
+            echo '✅ Deployment succeeded!'
+            // 构建成功后保存当前 commit，供下次对比
+            sh "cd ${env.PROJECT_DIR} && git rev-parse HEAD > ${env.PROJECT_DIR}/.last-deployed-commit"
+        }
         failure { echo '❌ Deployment failed!' }
     }
 }
