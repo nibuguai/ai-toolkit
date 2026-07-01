@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    triggers {
+        // 每 5 分钟轮询 GitHub（Pipeline 项目必须在此声明，UI 设置不生效）
+        pollSCM('H/5 * * * *')
+    }
+
     environment {
         // 项目路径（Jenkins 容器内挂载路径）
         PROJECT_DIR = '/var/jenkins_home/workspace/ai-toolkit'
