@@ -144,7 +144,6 @@ pipeline {
                 echo 'Building & deploying admin frontend...'
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
                     sh '''
-                        rm -rf node_modules
                         npm install --legacy-peer-deps
                         npm run build:prod
                     '''
@@ -167,7 +166,6 @@ pipeline {
                 echo 'Building & deploying mobile frontend...'
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-uniapp") {
                     sh '''
-                        rm -rf node_modules
                         npm install --legacy-peer-deps
                         npm run build:h5
                     '''
