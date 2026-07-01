@@ -25,8 +25,6 @@ import cn.iocoder.yudao.module.system.dal.dataobject.dept.UserPostDO;
 import cn.iocoder.yudao.module.system.dal.dataobject.user.AdminUserDO;
 import cn.iocoder.yudao.module.system.dal.mysql.dept.UserPostMapper;
 import cn.iocoder.yudao.module.system.dal.mysql.user.AdminUserMapper;
-import cn.iocoder.yudao.module.hrm.api.employee.EmployeeApi;
-import cn.iocoder.yudao.module.hrm.api.employee.dto.EmployeeUpdateReqDTO;
 import cn.iocoder.yudao.module.system.service.dept.DeptService;
 import cn.iocoder.yudao.module.system.service.dept.PostService;
 import cn.iocoder.yudao.module.system.service.oauth2.OAuth2TokenService;
@@ -89,10 +87,6 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Resource
     private ConfigApi configApi;
-
-    @Resource
-    @Lazy // 延迟，避免循环依赖报错
-    private EmployeeApi employeeApi;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -568,10 +562,7 @@ public class AdminUserServiceImpl implements AdminUserService {
      * @param userGenerated 是否已生成用户
      */
     private void updateEmployeeUserGeneratedStatus(Long userId, Boolean userGenerated) {
-        if (userId == null) {
-            return;
-        }
-        employeeApi.updateUserGeneratedStatus(userId, userGenerated);
+        // HRM 模块未启用，跳过员工同步
     }
 
     /**
@@ -580,19 +571,7 @@ public class AdminUserServiceImpl implements AdminUserService {
      * @param userUpdateReqVO 用户更新信息
      */
     private void syncUserToEmployee(UserSaveReqVO userUpdateReqVO) {
-        if (userUpdateReqVO.getId() == null) {
-            return;
-        }
-        EmployeeUpdateReqDTO employeeUpdateReqDTO = new EmployeeUpdateReqDTO();
-        employeeUpdateReqDTO.setName(userUpdateReqVO.getNickname()); // 员工姓名为用户昵称
-        employeeUpdateReqDTO.setMobile(userUpdateReqVO.getMobile()); // 手机号
-        employeeUpdateReqDTO.setEmail(userUpdateReqVO.getEmail()); // 邮箱
-        employeeUpdateReqDTO.setSex(userUpdateReqVO.getSex()); // 性别
-        employeeUpdateReqDTO.setAvatar(userUpdateReqVO.getAvatar()); // 头像
-        employeeUpdateReqDTO.setDeptId(userUpdateReqVO.getDeptId()); // 部门ID
-        employeeUpdateReqDTO.setRemark(userUpdateReqVO.getRemark()); // 备注
-
-        employeeApi.updateEmployeeByUserId(userUpdateReqVO.getId(), employeeUpdateReqDTO);
+        // HRM 模块未启用，跳过员工同步
     }
 
 }

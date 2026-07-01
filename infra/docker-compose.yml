@@ -1,0 +1,88 @@
+version: '3.8'
+
+# ============================================================
+#  共享基础设施
+#  - 所有项目共用，只启动一次
+#  - 端口仅绑定 127.0.0.1，外部无法访问
+#  - 容器之间通过 Docker 网络（容器名）互访
+# ============================================================
+
+services:
+
+  # ==================== MySQL ====================
+  shared-mysql:
+    image: mysql:8.0
+    container_name: shared-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - shared-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ==================== Redis ====================
+  shared-redis:
+    image: redis:7-alpine
+    container_name: shared-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - shared-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MinIO ====================
+  shared-minio:
+    image: minio/minio
+    container_name: shared-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - shared-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+# ==================== 网络 ====================
+
+networks:
+  shared-net:
+    name: shared-net
+    driver: bridge
+
+# ==================== 数据卷 ====================
+
+volumes:
+  mysql-data:
+    name: shared-mysql-data
+  redis-data:
+    name: shared-redis-data
+  minio-data:
+    name: shared-minio-data

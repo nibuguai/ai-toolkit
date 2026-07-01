@@ -1,5 +1,8 @@
 # 环境变量（含敏感信息）
 .env
+.env.*
+!.env.example
+infra/.env
 
 # Python
 __pycache__/
@@ -19,6 +22,21 @@ target/
 node_modules/
 dist/
 *.local
+*.tsbuildinfo
+
+# 前端项目（从上游克隆后需要排除的）
+frontend/*/.git/
+frontend/*/.husky/
+frontend/*/node_modules/
+frontend/*/dist/
+frontend/*/unpackage/
+frontend/*/docs/
+frontend/*/.image/
+frontend/*/.github/
+frontend/*/env/.env.local
+frontend/*/env/.env.development
+frontend/*/env/.env.production
+frontend/*/env/.env.test
 
 # IDE
 .idea/
@@ -50,3 +68,6 @@ Thumbs.db
 
 # SSL 证书（本地自签）
 nginx/ssl/
+
+# 内部文档（不公开）
+docs/
