@@ -65,7 +65,10 @@ pipeline {
         stage('Git Pull') {
             steps {
                 dir("${env.PROJECT_DIR}") {
-                    sh 'git pull origin master'
+                    sh '''
+                        git fetch origin master
+                        git reset --hard origin/master
+                    '''
                 }
             }
         }
