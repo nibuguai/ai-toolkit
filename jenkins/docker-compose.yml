@@ -2,9 +2,6 @@ version: '3.8'
 
 services:
   jenkins:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: jenkins-custom:latest
     container_name: jenkins
     restart: unless-stopped
@@ -13,19 +10,18 @@ services:
       - "0.0.0.0:5050:8080"
       - "50000:50000"
     volumes:
-      # Jenkins 数据持久化（复用原有数据卷）
       - jenkins_home:/var/jenkins_home
-      # 挂载 Docker Socket，让 Jenkins 能控制宿主机 Docker
       - /var/run/docker.sock:/var/run/docker.sock
-      # 挂载宿主机 docker 命令（备用，容器内已安装 CLI）
       - /usr/bin/docker:/usr/bin/docker:ro
-      # 挂载项目目录
       - /mnt/g/ai-toolkit:/var/jenkins_home/workspace/ai-toolkit
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    # 映射 github.com 到 Windows 宿主机 IP（Watt Toolkit 代理）
+    extra_hosts:
+      - "github.com:172.28.80.1"
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
+      - TZ=Asia/Shanghai
+      # Watt Toolkit 代理使用自签名证书，需要跳过 SSL 验证
+      - GIT_SSL_NO_VERIFY=1
 
 volumes:
   jenkins_home:

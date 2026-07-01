@@ -24,4 +24,10 @@ RUN apt-get update && \
     apt-get install -y git curl wget unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# 配置 Git（跳过 SSL 验证，适配 Watt Toolkit 代理）
+RUN git config --global http.sslVerify false
+
 USER jenkins
+
+# Jenkins 用户也配置
+RUN git config --global http.sslVerify false
