@@ -148,7 +148,7 @@ pipeline {
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
                     sh '''
                         rm -rf node_modules
-                        npm install
+                        npm install --legacy-peer-deps
                         npm run build
                     '''
                 }
@@ -171,7 +171,7 @@ pipeline {
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-uniapp") {
                     sh '''
                         rm -rf node_modules
-                        npm install
+                        npm install --legacy-peer-deps
                         npm run build:h5
                     '''
                 }
