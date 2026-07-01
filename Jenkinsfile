@@ -40,7 +40,6 @@ pipeline {
                     def lastCommitFile = "${env.PROJECT_DIR}/.last-deployed-commit"
 
                     try {
-                        // 读取上次部署的 commit
                         def lastCommit = sh(
                             script: "cat ${lastCommitFile} 2>/dev/null || echo ''",
                             returnStdout: true
@@ -53,7 +52,6 @@ pipeline {
                             ).trim()
                             echo "Comparing ${lastCommit}..HEAD"
                         } else {
-                            // 首次部署，全量构建
                             changes = 'ALL'
                             echo 'First build, full deployment'
                         }
@@ -72,19 +70,23 @@ pipeline {
 
                         env.CHANGE_JAVA    = changes.contains('backend-java/')                    ? 'true' : 'false'
                         env.CHANGE_PYTHON  = changes.contains('backend-python/')                  ? 'true' : 'false'
-                        env.CHANGE_ADMIN   = changes.contains('frontend/yudao-ui-admin-vue3/')    ? 'true' : 'false'
-                        env.CHANGE_MOBILE  = changes.contains('frontend/yudao-ui-admin-uniapp/')  ? 'true' : 'false'
                         env.CHANGE_NGINX   = changes.contains('nginx/')                           ? 'true' : 'false'
                         env.CHANGE_COMPOSE = changes.contains('docker-compose.yml')               ? 'true' : 'false'
+
+                        // 前端变更只记录日志，不自动构建（需要在 Windows 上用 pnpm 手动构建）
+                        def frontendChanged = changes.contains('frontend/yudao-ui-admin-vue3/') ||
+                                              changes.contains('frontend/yudao-ui-admin-uniapp/')
+                        if (frontendChanged) {
+                            echo '⚠️ Frontend changes detected - run deploy.bat on Windows to rebuild'
+                        }
 
                         echo """
                         |=== Change Summary ===
                         |Backend Java:    ${env.CHANGE_JAVA}
                         |Backend Python:  ${env.CHANGE_PYTHON}
-                        |Frontend Admin:  ${env.CHANGE_ADMIN}
-                        |Frontend Mobile: ${env.CHANGE_MOBILE}
                         |Nginx:           ${env.CHANGE_NGINX}
                         |Docker Compose:  ${env.CHANGE_COMPOSE}
+                        |Frontend:        ${frontendChanged ? 'NEEDS MANUAL BUILD' : 'no change'}
                         |========================
                         """.stripMargin()
                     }
@@ -106,7 +108,6 @@ pipeline {
                     sh '''
                         docker compose build doc-springboot
                         docker compose up -d doc-springboot
-                        echo "Spring Boot deployed"
                     '''
                 }
             }
@@ -126,68 +127,7 @@ pipeline {
                     sh '''
                         docker compose build doc-fastapi-vision
                         docker compose up -d doc-fastapi-vision
-                        echo "FastAPI deployed"
                     '''
-                }
-            }
-        }
-
-        stage('Deploy Admin Frontend') {
-            when {
-                expression {
-                    return env.DEPLOY_ALL == 'true' ||
-                           env.CHANGE_ADMIN == 'true' ||
-                           env.CHANGE_NGINX == 'true'
-                }
-            }
-            steps {
-                echo 'Building & deploying admin frontend...'
-                dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
-                    sh '''
-                        npm install --legacy-peer-deps
-                        npm run build:prod
-                    '''
-                }
-                dir("${env.PROJECT_DIR}") {
-                    sh 'docker exec doc-nginx nginx -s reload || (docker compose stop doc-nginx && docker compose up -d doc-nginx)'
-                }
-            }
-        }
-
-        stage('Deploy Mobile Frontend') {
-            when {
-                expression {
-                    return env.DEPLOY_ALL == 'true' ||
-                           env.CHANGE_MOBILE == 'true' ||
-                           env.CHANGE_NGINX == 'true'
-                }
-            }
-            steps {
-                echo 'Building & deploying mobile frontend...'
-                dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-uniapp") {
-                    sh '''
-                        npm install --legacy-peer-deps
-                        npm run build:h5
-                    '''
-                }
-                dir("${env.PROJECT_DIR}") {
-                    sh 'docker exec doc-nginx nginx -s reload || (docker compose stop doc-nginx && docker compose up -d doc-nginx)'
-                }
-            }
-        }
-
-        stage('Reload Nginx') {
-            when {
-                expression {
-                    return (env.CHANGE_NGINX == 'true' || env.CHANGE_COMPOSE == 'true') &&
-                           env.CHANGE_ADMIN != 'true' &&
-                           env.CHANGE_MOBILE != 'true'
-                }
-            }
-            steps {
-                echo 'Reloading nginx...'
-                dir("${env.PROJECT_DIR}") {
-                    sh 'docker exec doc-nginx nginx -s reload || (docker compose stop doc-nginx && docker compose up -d doc-nginx)'
                 }
             }
         }
@@ -204,8 +144,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment succeeded!'
-            // 构建成功后保存当前 commit，供下次对比
+            echo '''
+            ✅ Backend deployment succeeded!
+            ⚠️ If frontend was changed, run deploy.bat on Windows to rebuild.
+            '''
             sh "cd ${env.PROJECT_DIR} && git rev-parse HEAD > ${env.PROJECT_DIR}/.last-deployed-commit"
         }
         failure { echo '❌ Deployment failed!' }
