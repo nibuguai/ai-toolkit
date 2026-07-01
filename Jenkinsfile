@@ -146,7 +146,7 @@ pipeline {
                     sh '''
                         rm -rf node_modules
                         npm install --legacy-peer-deps
-                        npm run build
+                        npm run build:prod
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
