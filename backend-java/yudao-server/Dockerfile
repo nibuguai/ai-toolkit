@@ -3,6 +3,10 @@ FROM maven:3.9-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
+# 配置 Maven 国内镜像源
+RUN mkdir -p /root/.m2
+COPY settings.xml /root/.m2/settings.xml
+
 # 先复制 pom 文件，利用 Docker 缓存加速依赖下载
 COPY pom.xml .
 COPY yudao-dependencies/pom.xml yudao-dependencies/
@@ -34,4 +38,4 @@ ENV ARGS=""
 
 EXPOSE 8180
 
-CMD java ${JAVA_OPTS} -jar app.jar $ARGS
+CMD java  -jar app.jar 
