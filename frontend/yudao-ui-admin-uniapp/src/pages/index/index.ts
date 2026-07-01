@@ -48,6 +48,13 @@ export const FAVORITE_TAB_KEY = '__fav'
 
 const LAYOUT_STORAGE_KEY = 'workbenchMenuLayout'
 
+/**
+ * 工作台模块白名单
+ * 只展示白名单中的模块分组，其他全部隐藏。
+ * 可选值：system / infra / pay / bpm / member / mall / mp / crm / erp / mes / wms / ai / iot / im
+ */
+const GROUP_WHITELIST = new Set(['system', 'infra', 'ai'])
+
 /** 当前菜单布局（全局共享 + 本地持久化） */
 export const menuLayout = ref<MenuLayout>((uni.getStorageSync(LAYOUT_STORAGE_KEY) as MenuLayout) || 'sidebar')
 
@@ -89,6 +96,8 @@ export function getMenuGroups(): MenuGroup[] {
   const { hasAccessByCodes } = useAccess()
   const result: MenuGroup[] = []
   for (const group of groupsData) {
+    // 白名单过滤：不在白名单中的模块分组直接跳过
+    if (!GROUP_WHITELIST.has(group.key)) continue
     const subGroups: MenuSubGroup[] = []
     for (const sub of group.subGroups) {
       // 没有配置权限的菜单项默认展示
