@@ -150,7 +150,7 @@ pipeline {
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
-                    sh 'docker compose restart doc-nginx'
+                    sh 'docker compose stop doc-nginx && docker compose up -d doc-nginx'
                 }
             }
         }
@@ -173,7 +173,7 @@ pipeline {
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
-                    sh 'docker compose restart doc-nginx'
+                    sh 'docker compose stop doc-nginx && docker compose up -d doc-nginx'
                 }
             }
         }
@@ -189,7 +189,7 @@ pipeline {
             steps {
                 echo 'Reloading nginx...'
                 dir("${env.PROJECT_DIR}") {
-                    sh 'docker compose restart doc-nginx'
+                    sh 'docker compose stop doc-nginx && docker compose up -d doc-nginx'
                 }
             }
         }
