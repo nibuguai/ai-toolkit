@@ -29,7 +29,18 @@ pipeline {
                 script {
                     def changes = ''
                     try {
-                        changes = sh(script: "git diff --name-only HEAD~1 HEAD", returnStdout: true).trim()
+                        // 获取上次成功构建的 commit，与当前对比
+                        def lastSuccessful = currentBuild.getPreviousBuild()?.getResult() == 'SUCCESS' ?
+                            currentBuild.getPreviousBuild()?.getCommitId() : null
+
+                        if (lastSuccessful) {
+                            changes = sh(script: "git diff --name-only ${lastSuccessful} HEAD", returnStdout: true).trim()
+                            echo "Comparing against last successful build: ${lastSuccessful}"
+                        } else {
+                            // 没有上次成功构建，对比最近 3 个提交
+                            changes = sh(script: "git diff --name-only HEAD~3 HEAD", returnStdout: true).trim()
+                            echo "No previous successful build, comparing last 3 commits"
+                        }
                     } catch (Exception e) {
                         changes = 'ALL'
                     }
@@ -37,6 +48,9 @@ pipeline {
                     if (changes == 'ALL') {
                         env.DEPLOY_ALL = 'true'
                         echo 'Full deployment triggered'
+                    } else if (!changes) {
+                        env.DEPLOY_ALL = 'false'
+                        echo 'No changes detected'
                     } else {
                         echo "Changed files:\n${changes}"
 
