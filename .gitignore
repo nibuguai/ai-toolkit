@@ -72,3 +72,6 @@ nginx/ssl/
 # 内部文档（不公开）
 docs/
 jenkins/README.md
+
+# Jenkins 部署记录
+.last-deployed-commit

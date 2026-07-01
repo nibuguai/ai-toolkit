@@ -2,12 +2,10 @@ pipeline {
     agent any
 
     triggers {
-        // 每 5 分钟轮询 GitHub（Pipeline 项目必须在此声明，UI 设置不生效）
         pollSCM('H/5 * * * *')
     }
 
     environment {
-        // 项目路径（Jenkins 容器内挂载路径）
         PROJECT_DIR = '/var/jenkins_home/workspace/ai-toolkit'
     }
 
@@ -24,33 +22,54 @@ pipeline {
             }
         }
 
+        stage('Git Pull') {
+            steps {
+                dir("${env.PROJECT_DIR}") {
+                    sh '''
+                        git fetch origin master
+                        git reset --hard origin/master
+                    '''
+                }
+            }
+        }
+
         stage('Detect Changes') {
             steps {
                 script {
                     def changes = ''
-                    try {
-                        // 获取上次成功构建的 commit，与当前对比
-                        def lastSuccessful = currentBuild.getPreviousBuild()?.getResult() == 'SUCCESS' ?
-                            currentBuild.getPreviousBuild()?.getCommitId() : null
+                    def lastCommitFile = "${env.PROJECT_DIR}/.last-deployed-commit"
 
-                        if (lastSuccessful) {
-                            changes = sh(script: "git diff --name-only ${lastSuccessful} HEAD", returnStdout: true).trim()
-                            echo "Comparing against last successful build: ${lastSuccessful}"
+                    try {
+                        // 读取上次部署的 commit
+                        def lastCommit = sh(
+                            script: "cat ${lastCommitFile} 2>/dev/null || echo ''",
+                            returnStdout: true
+                        ).trim()
+
+                        if (lastCommit) {
+                            changes = sh(
+                                script: "cd ${env.PROJECT_DIR} && git diff --name-only ${lastCommit} HEAD",
+                                returnStdout: true
+                            ).trim()
+                            echo "Comparing ${lastCommit}..HEAD"
                         } else {
-                            // 没有上次成功构建，对比最近 3 个提交
-                            changes = sh(script: "git diff --name-only HEAD~3 HEAD", returnStdout: true).trim()
-                            echo "No previous successful build, comparing last 3 commits"
+                            // 首次部署，全量构建
+                            changes = 'ALL'
+                            echo 'First build, full deployment'
                         }
                     } catch (Exception e) {
                         changes = 'ALL'
                     }
+
+                    // 保存当前 commit 供下次对比
+                    sh "cd ${env.PROJECT_DIR} && git rev-parse HEAD > ${lastCommitFile}"
 
                     if (changes == 'ALL') {
                         env.DEPLOY_ALL = 'true'
                         echo 'Full deployment triggered'
                     } else if (!changes) {
                         env.DEPLOY_ALL = 'false'
-                        echo 'No changes detected'
+                        echo 'No changes since last deployment'
                     } else {
                         echo "Changed files:\n${changes}"
 
@@ -72,17 +91,6 @@ pipeline {
                         |========================
                         """.stripMargin()
                     }
-                }
-            }
-        }
-
-        stage('Git Pull') {
-            steps {
-                dir("${env.PROJECT_DIR}") {
-                    sh '''
-                        git fetch origin master
-                        git reset --hard origin/master
-                    '''
                 }
             }
         }
