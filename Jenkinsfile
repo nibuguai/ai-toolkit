@@ -139,8 +139,9 @@ pipeline {
                 echo 'Building & deploying admin frontend...'
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
                     sh '''
-                        pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-                        pnpm build
+                        rm -rf node_modules
+                        npm install
+                        npm run build
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
@@ -161,8 +162,9 @@ pipeline {
                 echo 'Building & deploying mobile frontend...'
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-uniapp") {
                     sh '''
-                        pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-                        pnpm build:h5
+                        rm -rf node_modules
+                        npm install
+                        npm run build:h5
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
