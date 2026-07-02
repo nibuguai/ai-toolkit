@@ -19,6 +19,7 @@ CREATE TABLE `ai_api_key` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI API 秘钥表';
 
@@ -43,6 +44,7 @@ CREATE TABLE `ai_model` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型表';
 
@@ -70,6 +72,7 @@ CREATE TABLE `ai_chat_role` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 聊天角色表';
 
@@ -87,6 +90,7 @@ CREATE TABLE `ai_tool` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 工具表';
 
@@ -112,6 +116,7 @@ CREATE TABLE `ai_chat_conversation` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI Chat 对话表';
 
@@ -139,6 +144,7 @@ CREATE TABLE `ai_chat_message` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI Chat 消息表';
 
@@ -168,6 +174,7 @@ CREATE TABLE `ai_image` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 绘图表';
 
@@ -198,6 +205,7 @@ CREATE TABLE `ai_music` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 音乐表';
 
@@ -225,6 +233,7 @@ CREATE TABLE `ai_write` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 写作表';
 
@@ -246,6 +255,7 @@ CREATE TABLE `ai_mind_map` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 思维导图表';
 
@@ -265,6 +275,7 @@ CREATE TABLE `ai_workflow` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 工作流表';
 
@@ -286,6 +297,7 @@ CREATE TABLE `ai_knowledge` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 知识库表';
 
@@ -309,6 +321,7 @@ CREATE TABLE `ai_knowledge_document` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 知识库-文档表';
 
@@ -331,5 +344,6 @@ CREATE TABLE `ai_knowledge_segment` (
   `creator` VARCHAR(255) DEFAULT NULL COMMENT '创建者',
   `updater` VARCHAR(255) DEFAULT NULL COMMENT '更新者',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除（0=未删除，1=已删除）',
+  `tenant_id` BIGINT NOT NULL DEFAULT 0 COMMENT '租户编号',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 知识库-文档分段表';
