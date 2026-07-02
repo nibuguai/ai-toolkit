@@ -12,7 +12,7 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker:ro
+      # Docker CLI 已在镜像中安装，无需挂载
       # 关键：容器内路径和宿主机路径保持一致，docker compose 相对路径才能正确解析
       - /home/deploy/ai-toolkit:/home/deploy/ai-toolkit
     extra_hosts:
