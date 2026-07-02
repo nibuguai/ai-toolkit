@@ -143,7 +143,7 @@ pipeline {
                 dir("${env.PROJECT_DIR}/frontend/yudao-ui-admin-vue3") {
                     sh '''
                         pnpm install
-                        pnpm build
+                        pnpm build:prod
                     '''
                 }
                 dir("${env.PROJECT_DIR}") {
