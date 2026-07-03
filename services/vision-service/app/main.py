@@ -46,3 +46,8 @@ async def health():
 from app.routers import id_photo
 
 app.include_router(id_photo.router, prefix="/api/v1/vision")
+
+
+# 注册 LLM 聊天路由
+from app.routers import llm_chat
+app.include_router(llm_chat.router, prefix="/api/v1/llm")
