@@ -24,6 +24,7 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - VISION_SERVICE_URL=http://doc-fastapi-vision:8181
+      - LLM_SERVICE_URL=http://doc-fastapi-llm:8005
     networks:
       - shared-net
     depends_on:
@@ -51,6 +52,25 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  doc-fastapi-llm:
+    build:
+      context: ./services/llm-service
+      dockerfile: Dockerfile
+    container_name: doc-fastapi-llm
+    ports:
+      - "127.0.0.1:8185:8005"
+    networks:
+      - shared-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # ==================== 反向代理 ====================
 

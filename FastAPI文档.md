@@ -140,7 +140,7 @@ SpringBoot                            FastAPI
 | RAG 问答 | document-service | 问题 + 知识库ID | 回答 + 引用来源 |
 | 象棋分析 | reasoning-service | FEN 棋局字符串 + 搜索深度 | 最佳着法 + 胜率 |
 | 棋谱复盘 | reasoning-service | 棋谱文件 Base64 | 逐回合分析 |
-| AI 对话 | reasoning-service | 用户消息 + 对话历史 | AI 回复文字 |
+| AI 对话 | llm-service | 用户消息 + 对话历史 | AI 回复文字 |
 
 
 
@@ -673,17 +673,193 @@ selenium
 
 
 
-## 七、服务间隔离原则
+## 七、llm-service（LLM 服务）
+
+
+
+**容器名：** `doc-fastapi-llm`
+**内部端口：** 8005
+**GPU：** 需要
+**基础镜像：** `python:3.11-slim`
+
+
+
+### 7.1 设计理念
+
+llm-service 是**统一的 LLM 推理服务**，职责：
+
+| 职责 | 说明 |
+| ---- | ---- |
+| **管理本地模型** | 连接 Ollama，管理本地部署的大模型（如 qwen2.5:7b） |
+| **统一聊天接口** | 提供标准化的聊天 API，支持流式/非流式响应 |
+| **模型路由** | 未来支持多个模型，根据请求选择不同模型 |
+| **被多方调用** | SpringBoot（AI 对话）、document-service（RAG 问答）都调用此服务 |
+
+**为什么单独一个服务？**
+- 本地大模型需要**常驻显存**，模型加载耗时长，不能每次请求重新加载
+- **多个服务共用**：document-service 的 RAG 问答、reasoning-service 的 AI 对话都需要 LLM
+- **资源隔离**：LLM 推理显存占用大（~5GB），单独管理便于监控和扩容
+
+
+
+### 7.2 API 端点
+
+基础路径：`/api/v1/llm`
+
+#### 聊天接口
+
+| 方法 | 路径 | 说明 | 参数 |
+| ---- | ---- | ---- | ---- |
+| POST | `/chat` | 非流式聊天 | model: 模型名, messages: 消息列表 |
+| POST | `/chat/stream` | 流式聊天（SSE） | model: 模型名, messages: 消息列表, stream: true |
+| GET | `/models` | 获取可用模型列表 | — |
+| GET | `/health` | 健康检查（含 Ollama 状态） | — |
+
+#### 请求格式
+
+```json
+{
+  "model": "qwen2.5:7b",
+  "messages": [
+    {"role": "system", "content": "你是一个有帮助的AI助手"},
+    {"role": "user", "content": "你好"}
+  ],
+  "stream": false
+}
+```
+
+#### 响应格式（非流式）
+
+```json
+{
+  "model": "qwen2.5:7b",
+  "message": {
+    "role": "assistant",
+    "content": "你好！有什么我可以帮助你的吗？"
+  },
+  "done": true
+}
+```
+
+#### 响应格式（流式 SSE）
+
+```
+data: {"model":"qwen2.5:7b","message":{"role":"assistant","content":"你"},"done":false}
+data: {"model":"qwen2.5:7b","message":{"role":"assistant","content":"好"},"done":false}
+data: {"model":"qwen2.5:7b","message":{"role":"assistant","content":"！"},"done":true}
+```
+
+
+
+### 7.3 健康检查
+
+```
+GET /health → {
+  "status": "ok",
+  "service": "llm-service",
+  "ollama_status": "connected",
+  "models": ["qwen2.5:7b", "qwen2.5:14b"]
+}
+```
+
+
+
+### 7.4 镜像制作要点
+
+
+
+**Dockerfile 关键内容：**
+
+```dockerfile
+FROM python:3.11-slim
+
+# 配置 pip 国内镜像
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8005
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
+```
+
+
+
+**requirements.txt 核心依赖：**
+
+```
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+pydantic>=2.0.0
+```
+
+
+
+**Ollama 连接方式：**
+
+| 部署方式 | Ollama 地址 | 说明 |
+| ---- | ---- | ---- |
+| Docker 内 | `http://host.docker.internal:11434` | 通过 Docker 特殊域名访问宿主机 |
+| 同一网络 | `http://ollama:11434` | 如果 Ollama 也在 Docker 中 |
+| 宿主机 | `http://localhost:11434` | 非 Docker 环境 |
+
+
+
+### 7.5 调用关系
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        SpringBoot                            │
+│                                                              │
+│   AI 对话页面 ──────────────────────────────┐                │
+│                                              │                │
+└──────────────────────────────────────────────┼────────────────┘
+                                               │
+                                               ▼
+                                    ┌──────────────────┐
+                                    │   llm-service     │
+                                    │   :8005           │
+                                    │                   │
+                                    │   /api/v1/llm/    │
+                                    │     chat          │
+                                    │     chat/stream   │
+                                    └────────┬──────────┘
+                                             │
+                                             ▼
+                                    ┌──────────────────┐
+                                    │     Ollama        │
+                                    │   :11434          │
+                                    │                   │
+                                    │   qwen2.5:7b      │
+                                    └──────────────────┘
+
+document-service ──→ llm-service (RAG 问答时调用 LLM 生成回答)
+reasoning-service ──→ llm-service (AI 对话功能)
+```
+
+
+
+------
+
+
+
+## 八、服务间隔离原则
 
 
 
 | 原则 | 说明 |
 | ---- | ---- |
 | **独立镜像** | 每个服务有自己的 Dockerfile，不共享基础镜像以外的依赖 |
-| **独立端口** | vision:8001 / language:8002 / document:8003 / reasoning:8004 |
-| **不互相调用** | FastAPI 服务之间不发起 HTTP 请求，所有编排由 SpringBoot 负责 |
+| **独立端口** | vision:8001 / language:8002 / document:8003 / reasoning:8004 / llm:8005 |
+| **不互相调用** | FastAPI 服务之间不直接调用，所有编排由 SpringBoot 负责（llm-service 除外，可被其他服务调用） |
 | **独立扩缩** | 每个服务可独立重启、独立扩容副本数 |
-| **GPU 优先级** | vision > language > document > reasoning（reasoning 不需要 GPU） |
+| **GPU 优先级** | llm > vision > language > document > reasoning（reasoning 不需要 GPU） |
 | **模型缓存共享** | model-cache 卷可共享挂载，避免从 HuggingFace 重复下载相同基础模型 |
 
 
@@ -693,9 +869,9 @@ selenium
 ```
 frontend 网络：Nginx ↔ SpringBoot
 
-backend 网络： SpringBoot ↔ FastAPI (全部4个) ↔ MySQL ↔ Redis ↔ MinIO
+backend 网络： SpringBoot ↔ FastAPI (全部5个) ↔ MySQL ↔ Redis ↔ MinIO
 
-FastAPI 对外不可访问，仅 SpringBoot 可调用
+FastAPI 对外不可访问，仅 SpringBoot 可调用（llm-service 可被其他 FastAPI 服务调用）
 ```
 
 > 详细网络配置请参阅《Docker 部署总览文档》。
@@ -744,6 +920,19 @@ services/vision-service/
 ```
 
 > 其他服务（language/document/reasoning）仿照此结构调整 `routers/` 和 `services/` 目录即可。
+>
+> **llm-service 结构略有不同**（无复杂路由，主要是 Ollama 连接）：
+> ```
+> services/llm-service/
+> ├── Dockerfile
+> ├── requirements.txt
+> └── app/
+>     ├── __init__.py
+>     ├── main.py
+>     └── routers/
+>         ├── __init__.py
+>         └── llm_chat.py
+> ```
 
 
 
